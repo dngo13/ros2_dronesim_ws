@@ -1,0 +1,12 @@
+# Ignore build artifacts
+build/
+install/
+log/
+.cache/
+
+# Ignore IDE/editor specific files (example for VS Code)
+.vscode/
+
+# Ignore Python cache
+__pycache__/
+*.pyc
