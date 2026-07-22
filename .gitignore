@@ -1,12 +1,12 @@
-# Ignore build artifacts
+# Colcon build artifacts
 build/
 install/
 log/
 .cache/
 
-# Ignore IDE/editor specific files (example for VS Code)
+# Editors
 .vscode/
 
-# Ignore Python cache
+# Python
 __pycache__/
 *.pyc

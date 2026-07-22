@@ -1,0 +1,1 @@
+# Keep the PX4 firmware tree out of the ROS colcon package scan.
