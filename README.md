@@ -79,9 +79,13 @@ sudo apt install -y ros-jazzy-desktop ros-jazzy-ros-gz ros-jazzy-sdformat-urdf g
 Install ArduPilot's Ubuntu prerequisites:
 
 ```bash
+cd ~/ros2_dronesim_ws
+git submodule update --init --recursive
+
 cd ~/ros2_dronesim_ws/src/ardupilot
-DO_AP_STM_ENV=0 DO_PYTHON_VENV_ENV=0 Tools/environment_install/install-prereqs-ubuntu.sh -y
+python3 -m venv ~/venv-ardupilot
 source ~/venv-ardupilot/bin/activate
+DO_AP_STM_ENV=0 DO_PYTHON_VENV_ENV=0 Tools/environment_install/install-prereqs-ubuntu.sh -y
 python -m pip install 'setuptools<80'
 ```
 
@@ -127,6 +131,28 @@ export PATH=$PWD/tools/Micro-XRCE-DDS-Gen/scripts:$PATH
 export GZ_VERSION=harmonic
 colcon build --symlink-install
 ```
+
+## WSL GPU rendering workaround
+
+If Gazebo is rendering through `llvmpipe` in WSL, add the following to your shell startup so Mesa uses the D3D12 driver path:
+
+```bash
+echo 'unset LIBGL_ALWAYS_SOFTWARE' >> ~/.bashrc
+echo 'export MESA_LOADER_DRIVER_OVERRIDE=d3d12' >> ~/.bashrc
+echo 'export GALLIUM_DRIVER=d3d12' >> ~/.bashrc
+echo 'export QT_QPA_PLATFORM=xcb' >> ~/.bashrc
+source ~/.bashrc
+```
+
+Verify that the renderer changed before launching Gazebo:
+
+```bash
+export MESA_LOADER_DRIVER_OVERRIDE=d3d12
+export GALLIUM_DRIVER=d3d12
+glxinfo -B | grep "OpenGL renderer"
+```
+
+The output should no longer show `llvmpipe`.
 
 ## Run the simulation
 
