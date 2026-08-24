@@ -132,6 +132,9 @@ export GZ_VERSION=harmonic
 colcon build --symlink-install
 ```
 
+Or, after the one-time setup below, just run `scripts/build_ws.sh` (or the
+`buildsim` alias — see [Shortcuts](#shortcuts)).
+
 ## WSL GPU rendering workaround
 
 If Gazebo is rendering through `llvmpipe` in WSL, add the following to your shell startup so Mesa uses the D3D12 driver path:
@@ -177,6 +180,33 @@ RViz.
 
 If Gazebo reports `Unable to find uri[package://ardupilot_gazebo/...]`, the
 resource-path exports above were not set in that terminal.
+
+Or, after the one-time setup below, just run `scripts/run_sim.sh` (or the
+`runsim` alias — see [Shortcuts](#shortcuts)). Extra arguments are forwarded
+to `ros2 launch`, e.g. `scripts/run_sim.sh out:=172.20.64.1:14550`.
+
+## Shortcuts
+
+`scripts/run_sim.sh` and `scripts/build_ws.sh` wrap the commands above so you
+don't have to retype the sourcing and exports every session. Add aliases for
+them once, in `~/.bash_aliases` (loaded by the default `.bashrc`, but only
+runs the workspace setup when you invoke it — it won't affect other
+terminals):
+
+```bash
+cat >> ~/.bash_aliases <<'EOF'
+alias runsim='~/ros2_dronesim_ws/scripts/run_sim.sh'
+alias buildsim='~/ros2_dronesim_ws/scripts/build_ws.sh'
+EOF
+source ~/.bashrc
+```
+
+Then a session is just:
+
+```bash
+buildsim   # after pulling or editing a package
+runsim     # start Gazebo + SITL + MAVProxy
+```
 
 ## Verify ROS 2
 
