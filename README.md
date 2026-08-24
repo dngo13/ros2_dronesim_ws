@@ -132,9 +132,6 @@ export GZ_VERSION=harmonic
 colcon build --symlink-install
 ```
 
-Or, after the one-time setup below, just run `scripts/build_ws.sh` (or the
-`buildsim` alias — see [Shortcuts](#shortcuts)).
-
 ## WSL GPU rendering workaround
 
 If Gazebo is rendering through `llvmpipe` in WSL, add the following to your shell startup so Mesa uses the D3D12 driver path:
@@ -157,20 +154,39 @@ glxinfo -B | grep "OpenGL renderer"
 
 The output should no longer show `llvmpipe`.
 
+## Auto-source the simulation environment
+
+Add this once to `~/.bashrc` so every new terminal has the venv, ROS 2,
+and the workspace overlay ready without retyping anything:
+
+```bash
+cat >> ~/.bashrc <<'EOF'
+
+# ros2_dronesim_ws: source SITL/Gazebo env so `ros2 launch ...` works directly
+if [ -f "$HOME/venv-ardupilot/bin/activate" ]; then
+    source "$HOME/venv-ardupilot/bin/activate"
+fi
+if [ -f "$HOME/ros2_dronesim_ws/install/setup.bash" ]; then
+    source "$HOME/ros2_dronesim_ws/install/setup.bash"
+fi
+export GZ_VERSION=harmonic
+export GZ_SIM_RESOURCE_PATH="$HOME/ros2_dronesim_ws/install/ardupilot_gazebo/share:${GZ_SIM_RESOURCE_PATH:-}"
+export SDF_PATH="$HOME/ros2_dronesim_ws/install/ardupilot_gazebo/share:${SDF_PATH:-}"
+EOF
+source ~/.bashrc
+```
+
+The `if` guards mean a fresh checkout without the venv or a build yet won't
+break other terminals — they just skip sourcing until those exist. Re-run
+`source ~/.bashrc` (or open a new terminal) after your first `colcon build`
+so the workspace overlay picks up.
+
 ## Run the simulation
 
-Run this complete block from WSL. The resource-path exports are required for
-the nested gimbal models to load.
+With the environment auto-sourced, starting the simulation is just:
 
 ```bash
 cd ~/ros2_dronesim_ws
-source ~/venv-ardupilot/bin/activate
-source /opt/ros/jazzy/setup.bash
-source install/setup.bash
-export GZ_VERSION=harmonic
-export GZ_SIM_RESOURCE_PATH=$PWD/install/ardupilot_gazebo/share:${GZ_SIM_RESOURCE_PATH:-}
-export SDF_PATH=$PWD/install/ardupilot_gazebo/share:${SDF_PATH:-}
-
 ros2 launch ardupilot_gz_bringup iris_runway.launch.py rviz:=false gz_args:=-r on_exit_shutdown:=true
 ```
 
@@ -179,34 +195,8 @@ bridges. Stop everything with `Ctrl+C`. Remove `rviz:=false` if you also want
 RViz.
 
 If Gazebo reports `Unable to find uri[package://ardupilot_gazebo/...]`, the
-resource-path exports above were not set in that terminal.
-
-Or, after the one-time setup below, just run `scripts/run_sim.sh` (or the
-`runsim` alias — see [Shortcuts](#shortcuts)). Extra arguments are forwarded
-to `ros2 launch`, e.g. `scripts/run_sim.sh out:=172.20.64.1:14550`.
-
-## Shortcuts
-
-`scripts/run_sim.sh` and `scripts/build_ws.sh` wrap the commands above so you
-don't have to retype the sourcing and exports every session. Add aliases for
-them once, in `~/.bash_aliases` (loaded by the default `.bashrc`, but only
-runs the workspace setup when you invoke it — it won't affect other
-terminals):
-
-```bash
-cat >> ~/.bash_aliases <<'EOF'
-alias runsim='~/ros2_dronesim_ws/scripts/run_sim.sh'
-alias buildsim='~/ros2_dronesim_ws/scripts/build_ws.sh'
-EOF
-source ~/.bashrc
-```
-
-Then a session is just:
-
-```bash
-buildsim   # after pulling or editing a package
-runsim     # start Gazebo + SITL + MAVProxy
-```
+`~/.bashrc` block above hasn't been sourced in that terminal — open a new one
+or run `source ~/.bashrc`.
 
 ## Verify ROS 2
 
