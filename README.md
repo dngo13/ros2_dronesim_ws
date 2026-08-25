@@ -229,27 +229,21 @@ controller disconnected while using SITL.
 
 ## Custom package: drone_autonomy
 
-A C++ package that will eventually hold custom autonomy nodes (starting with a
-gimbal controller). For now it just has a launch file that re-launches the
-sim, as a first step before adding real nodes.
-
-Created with:
+C++ package for custom autonomy nodes (flight mission control now, a gimbal
+controller later) plus a launch file that re-launches the sim.
 
 ```bash
 cd ~/ros2_dronesim_ws/src
 ros2 pkg create --build-type ament_cmake --license Apache-2.0 --dependencies rclcpp --node-name gimbal_controller_node drone_autonomy
 ```
 
-- `--build-type ament_cmake` — C++ package (`ament_python` would be for Python).
-- `--dependencies rclcpp` — the C++ client library any ROS 2 C++ node needs.
-- `--node-name gimbal_controller_node` — also scaffolds a starter `.cpp` file
-  and wires it into `CMakeLists.txt` automatically. Not used yet.
+`--build-type ament_cmake` makes it a C++ package; `--node-name` scaffolds a
+starter node file and wires it into `CMakeLists.txt`.
 
 ### Launch file
 
-`ros2 pkg create` doesn't generate a `launch/` folder or add a launch-file
-flag, so it's added by hand: `src/drone_autonomy/launch/drone_autonomy_launch.py`,
-which re-uses the existing `iris_runway.launch.py` instead of duplicating it:
+`launch/drone_autonomy_launch.py` reuses `iris_runway.launch.py` via
+`IncludeLaunchDescription` instead of duplicating it:
 
 ```python
 from launch import LaunchDescription
@@ -273,31 +267,47 @@ def generate_launch_description():
     return LaunchDescription([sim])
 ```
 
-Building blocks used, simplified:
-
-| Line | What it does |
-|---|---|
-| `LaunchDescription([...])` | The list of everything this launch file starts. |
-| `IncludeLaunchDescription(...)` | "Also run this other launch file" — how launch files nest. |
-| `PythonLaunchDescriptionSource(...)` | Says the included file is a `.py` launch file. |
-| `FindPackageShare('ardupilot_gz_bringup')` | Finds where that package's installed files live, so this file can reach into it. |
-| `PathJoinSubstitution([...])` | Joins path pieces (package share dir + `launch/` + filename) into one path. |
-
-Also needed — `colcon build` only installs files it's told to, so
-`CMakeLists.txt` needs this added before `ament_package()`, or the launch file
-won't exist in `install/` and `ros2 launch` can't find it:
-
-```cmake
-install(DIRECTORY launch
-  DESTINATION share/${PROJECT_NAME})
-```
-
-Build just this package and run it:
+`CMakeLists.txt` also needs `install(DIRECTORY launch DESTINATION
+share/${PROJECT_NAME})` before `ament_package()`, or `ros2 launch` won't find
+the file after building.
 
 ```bash
 colcon build --packages-select drone_autonomy --symlink-install
 source ~/.bashrc
 ros2 launch drone_autonomy drone_autonomy_launch.py
+```
+
+### Flight mission node
+
+`src/flight_mission_node.cpp` commands takeoff → hover at 10m for 30s → land,
+using ArduPilot's native ROS 2 services (`ardupilot_msgs` via `AP_DDS` — no
+MAVROS). Reference: `src/ardupilot/libraries/AP_DDS/README.md`.
+
+| Interface | Type | Purpose |
+|---|---|---|
+| `/ap/mode_switch` | service | Switch flight mode (GUIDED=4, LAND=9) |
+| `/ap/arm_motors` | service | Arm the motors |
+| `/ap/experimental/takeoff` | service | Climb to and hold an altitude (GUIDED only) |
+| `/ap/pose/filtered` | topic | Confirms altitude was actually reached |
+
+```bash
+ros2 service call /ap/prearm_check std_srvs/srv/Trigger
+```
+
+Needs `ardupilot_msgs` and `geometry_msgs` added to `package.xml` and
+`CMakeLists.txt`.
+
+Two gotchas hit while writing it: a plain `async_send_request()` future's
+`.get()` can only be called once — save the result to a variable instead of
+calling it again, or it throws `std::future_error: No associated state`.
+And checking altitude needs a subscription, not a service call — use
+`rclcpp::wait_for_message(msg, node, topic, timeout)` for a one-line blocking
+read instead of hand-writing a callback.
+
+```bash
+colcon build --packages-select drone_autonomy --symlink-install
+source ~/.bashrc
+ros2 run drone_autonomy flight_mission_node
 ```
 
 ## Gimbal and future work
@@ -319,12 +329,3 @@ to RC channels 6, 7, and 8. Suggested next steps are:
 - [ArduPilot SITL models](https://github.com/ArduPilot/SITL_Models)
 - [Gazebo Harmonic](https://gazebosim.org/docs/harmonic/getstarted/)
 
---------
-## Creating new package for drone autonomy
-```bash
-cd ~/ros2_dronesim_ws/src
-ros2 pkg create --build-type ament_cmake --license Apache-2.0 --dependencies rclcpp --node-name gimbal_controller_node drone_autonomy
-```
-- `ament_cmake` - tells that is a C++ package 
-- `rclcpp` - the C++ client library that allows communication between the program and ROS2 functions
-- `node-name gimbal_controller_node` - creates the C++ starter file for the node 
