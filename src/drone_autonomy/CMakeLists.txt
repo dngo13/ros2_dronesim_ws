@@ -8,8 +8,19 @@ endif()
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(ardupilot_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
 
 add_executable(gimbal_controller_node src/gimbal_controller_node.cpp)
+add_executable(flight_mission_node src/flight_mission_node.cpp)
+target_compile_features(flight_mission_node PUBLIC c_std_99 cxx_std_17)
+ament_target_dependencies(
+  flight_mission_node
+  "rclcpp"
+  "ardupilot_msgs"
+  "geometry_msgs"
+)
+
 target_include_directories(gimbal_controller_node PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include/${PROJECT_NAME}>)
@@ -17,14 +28,16 @@ target_compile_features(gimbal_controller_node PUBLIC c_std_99 cxx_std_17)  # Re
 ament_target_dependencies(
   gimbal_controller_node
   "rclcpp"
+  "ardupilot_msgs"
+  "geometry_msgs"
 )
 
-install(TARGETS gimbal_controller_node
+install(TARGETS gimbal_controller_node flight_mission_node
   DESTINATION lib/${PROJECT_NAME})
 
 install(DIRECTORY launch
   DESTINATION share/${PROJECT_NAME})
-  
+
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   # the following line skips the linter which checks for copyrights
