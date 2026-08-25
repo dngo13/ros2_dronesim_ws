@@ -227,6 +227,79 @@ ros2 launch ardupilot_gz_bringup iris_runway.launch.py rviz:=false gz_args:=-r o
 Replace the example IP address with your gateway. Keep the real flight
 controller disconnected while using SITL.
 
+## Custom package: drone_autonomy
+
+A C++ package that will eventually hold custom autonomy nodes (starting with a
+gimbal controller). For now it just has a launch file that re-launches the
+sim, as a first step before adding real nodes.
+
+Created with:
+
+```bash
+cd ~/ros2_dronesim_ws/src
+ros2 pkg create --build-type ament_cmake --license Apache-2.0 --dependencies rclcpp --node-name gimbal_controller_node drone_autonomy
+```
+
+- `--build-type ament_cmake` — C++ package (`ament_python` would be for Python).
+- `--dependencies rclcpp` — the C++ client library any ROS 2 C++ node needs.
+- `--node-name gimbal_controller_node` — also scaffolds a starter `.cpp` file
+  and wires it into `CMakeLists.txt` automatically. Not used yet.
+
+### Launch file
+
+`ros2 pkg create` doesn't generate a `launch/` folder or add a launch-file
+flag, so it's added by hand: `src/drone_autonomy/launch/drone_autonomy_launch.py`,
+which re-uses the existing `iris_runway.launch.py` instead of duplicating it:
+
+```python
+from launch import LaunchDescription
+from launch.actions import IncludeLaunchDescription
+from launch.launch_description_sources import PythonLaunchDescriptionSource
+from launch.substitutions import PathJoinSubstitution
+from launch_ros.substitutions import FindPackageShare
+
+
+def generate_launch_description():
+    sim = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            PathJoinSubstitution([
+                FindPackageShare('ardupilot_gz_bringup'),
+                'launch',
+                'iris_runway.launch.py',
+            ])
+        )
+    )
+
+    return LaunchDescription([sim])
+```
+
+Building blocks used, simplified:
+
+| Line | What it does |
+|---|---|
+| `LaunchDescription([...])` | The list of everything this launch file starts. |
+| `IncludeLaunchDescription(...)` | "Also run this other launch file" — how launch files nest. |
+| `PythonLaunchDescriptionSource(...)` | Says the included file is a `.py` launch file. |
+| `FindPackageShare('ardupilot_gz_bringup')` | Finds where that package's installed files live, so this file can reach into it. |
+| `PathJoinSubstitution([...])` | Joins path pieces (package share dir + `launch/` + filename) into one path. |
+
+Also needed — `colcon build` only installs files it's told to, so
+`CMakeLists.txt` needs this added before `ament_package()`, or the launch file
+won't exist in `install/` and `ros2 launch` can't find it:
+
+```cmake
+install(DIRECTORY launch
+  DESTINATION share/${PROJECT_NAME})
+```
+
+Build just this package and run it:
+
+```bash
+colcon build --packages-select drone_autonomy --symlink-install
+source ~/.bashrc
+ros2 launch drone_autonomy drone_autonomy_launch.py
+```
+
 ## Gimbal and future work
 
 The current Iris model includes a camera and maps gimbal roll, pitch, and yaw
@@ -245,3 +318,13 @@ to RC channels 6, 7, and 8. Suggested next steps are:
 - [ArduPilot Gazebo plugin](https://github.com/ArduPilot/ardupilot_gazebo)
 - [ArduPilot SITL models](https://github.com/ArduPilot/SITL_Models)
 - [Gazebo Harmonic](https://gazebosim.org/docs/harmonic/getstarted/)
+
+--------
+## Creating new package for drone autonomy
+```bash
+cd ~/ros2_dronesim_ws/src
+ros2 pkg create --build-type ament_cmake --license Apache-2.0 --dependencies rclcpp --node-name gimbal_controller_node drone_autonomy
+```
+- `ament_cmake` - tells that is a C++ package 
+- `rclcpp` - the C++ client library that allows communication between the program and ROS2 functions
+- `node-name gimbal_controller_node` - creates the C++ starter file for the node 
